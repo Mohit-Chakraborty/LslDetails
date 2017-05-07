@@ -1,23 +1,18 @@
 ﻿//------------------------------------------------------------------------------
-// <copyright file="VSPackage1.cs" company="Company">
-//     Copyright (c) Company.  All rights reserved.
+// <copyright file="LslDetailsPackage.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 //------------------------------------------------------------------------------
 
-using System;
-using System.ComponentModel.Design;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Runtime.InteropServices;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.OLE.Interop;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.Win32;
-
 namespace LslDetails
 {
+    using System;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.InteropServices;
+    using Microsoft.VisualStudio;
+    using Microsoft.VisualStudio.Shell;
+    using Microsoft.VisualStudio.Shell.Interop;
+
     /// <summary>
     /// This is the class that implements the package exposed by this assembly.
     /// </summary>
@@ -43,12 +38,12 @@ namespace LslDetails
     [ProvideAutoLoad(UIContextGuids.SolutionExists)]
     public sealed class LslDetailsPackage : Package
     {
-        private const string DeferredProjectCaptionSuffix = "*";
-
         /// <summary>
-        /// VSPackage1 GUID string.
+        /// LslDetailsPackage GUID string.
         /// </summary>
         public const string PackageGuidString = "d9b593e4-9503-44e8-bfa7-894e13d365b7";
+
+        private const string DeferredProjectCaptionSuffix = "*";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LslDetailsPackage"/> class.
@@ -69,20 +64,21 @@ namespace LslDetails
         {
             base.Initialize();
 
-            KnownUIContexts.SolutionExistsAndFullyLoadedContext.UIContextChanged += SolutionExistsAndFullyLoadedContext_UIContextChanged;
+            KnownUIContexts.SolutionExistsAndFullyLoadedContext.UIContextChanged += this.SolutionExistsAndFullyLoadedContext_UIContextChanged;
         }
 
         private void SolutionExistsAndFullyLoadedContext_UIContextChanged(object sender, UIContextChangedEventArgs e)
         {
-            if (e.Activated) // KnownUIContexts.SolutionExistsAndFullyLoadedContext.IsActive == true
+            // KnownUIContexts.SolutionExistsAndFullyLoadedContext.IsActive == true
+            if (e.Activated)
             {
-                UpdateCaptionOfDeferredProjects();
+                this.UpdateCaptionOfDeferredProjects();
             }
         }
 
-        internal void UpdateCaptionOfDeferredProjects()
+        private void UpdateCaptionOfDeferredProjects()
         {
-            var solution = GetService(typeof(IVsSolution)) as IVsSolution;
+            var solution = this.GetService(typeof(IVsSolution)) as IVsSolution;
 
             Guid g = Guid.Empty;
             int hr = solution.GetProjectEnum((uint)__VSENUMPROJFLAGS3.EPF_DEFERRED, ref g, out IEnumHierarchies enumHierarchies);
@@ -93,9 +89,9 @@ namespace LslDetails
             }
 
             IVsHierarchy[] hierachies = new IVsHierarchy[1];
-            enumHierarchies.Next(1, hierachies, out uint fetchedCount);
+            hr = enumHierarchies.Next(1, hierachies, out uint fetchedCount);
 
-            while (fetchedCount == 1)
+            while (ErrorHandler.Succeeded(hr) && (fetchedCount == 1))
             {
                 IVsHierarchy deferredProject = hierachies[0];
 
@@ -106,7 +102,7 @@ namespace LslDetails
                     deferredProject.SetProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_Caption, caption + DeferredProjectCaptionSuffix);
                 }
 
-                enumHierarchies.Next(1, hierachies, out fetchedCount);
+                hr = enumHierarchies.Next(1, hierachies, out fetchedCount);
             }
         }
     }
