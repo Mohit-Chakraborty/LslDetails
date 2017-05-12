@@ -139,13 +139,19 @@ namespace LslDetails
                 }
                 else
                 {
-                    nonDeferredProjects.Add(hierachies[0]);
+                    hr = hierachies[0].GetGuidProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_TypeGuid, out Guid type);
+                    if (ErrorHandler.Succeeded(hr) && (type != VSConstants.ItemTypeGuid.VirtualFolder_guid))
+                    {
+                        nonDeferredProjects.Add(hierachies[0]);
+                    }
                 }
 
                 hr = enumHierarchies.Next(1, hierachies, out fetchedCount);
             }
 
-            this.WriteToOutputPane("Solution has " + (deferredProjects.Count + nonDeferredProjects.Count) + " projects.");
+            solution.GetProperty((int)__VSPROPID.VSPROPID_SolutionFileName, out object solutionFilePath);
+
+            this.WriteToOutputPane("Solution '" + solutionFilePath + "' has " + (deferredProjects.Count + nonDeferredProjects.Count) + " projects.");
 
             this.WriteToOutputPane("* Deferred projects - " + deferredProjects.Count);
             foreach (var hierarchy in deferredProjects)
@@ -166,13 +172,6 @@ namespace LslDetails
                 if (ErrorHandler.Succeeded(hr))
                 {
                     this.WriteToOutputPane(name);
-                }
-
-                hr = hierarchy.GetGuidProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_TypeGuid, out Guid type);
-
-                if (ErrorHandler.Succeeded(hr))
-                {
-                    this.WriteToOutputPane("\t" + type.ToString());
                 }
             }
         }
