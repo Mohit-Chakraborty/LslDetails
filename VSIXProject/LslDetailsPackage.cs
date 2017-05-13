@@ -7,6 +7,7 @@
 namespace LslDetails
 {
     using System;
+    using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Runtime.InteropServices;
     using Microsoft.VisualStudio;
@@ -45,6 +46,9 @@ namespace LslDetails
 
         private const string DeferredProjectCaptionSuffix = "*";
 
+        private const string LslwindowPaneCaption = "Lightweight solution load";
+        private IVsOutputWindowPane windowPane;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="LslDetailsPackage"/> class.
         /// </summary>
@@ -73,6 +77,7 @@ namespace LslDetails
             if (e.Activated)
             {
                 this.UpdateCaptionOfDeferredProjects();
+                this.EnumerateProjectsInSolution();
             }
         }
 
@@ -104,6 +109,82 @@ namespace LslDetails
 
                 hr = enumHierarchies.Next(1, hierachies, out fetchedCount);
             }
+        }
+
+        private void EnumerateProjectsInSolution()
+        {
+            var solution = this.GetService(typeof(IVsSolution)) as IVsSolution;
+
+            Guid g = Guid.Empty;
+            int hr = solution.GetProjectEnum((uint)__VSENUMPROJFLAGS.EPF_LOADEDINSOLUTION, ref g, out IEnumHierarchies enumHierarchies);
+
+            if (ErrorHandler.Failed(hr))
+            {
+                return;
+            }
+
+            var deferredProjects = new List<IVsHierarchy>();
+            var nonDeferredProjects = new List<IVsHierarchy>();
+
+            IVsHierarchy[] hierachies = new IVsHierarchy[1];
+            hr = enumHierarchies.Next(1, hierachies, out uint fetchedCount);
+
+            while (ErrorHandler.Succeeded(hr) && (fetchedCount == 1))
+            {
+                hr = hierachies[0].GetProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID9.VSHPROPID_IsDeferred, out object isDeferred);
+
+                if (ErrorHandler.Succeeded(hr) && (bool)isDeferred)
+                {
+                    deferredProjects.Add(hierachies[0]);
+                }
+                else
+                {
+                    hr = hierachies[0].GetGuidProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_TypeGuid, out Guid type);
+                    if (ErrorHandler.Succeeded(hr) && (type != VSConstants.ItemTypeGuid.VirtualFolder_guid))
+                    {
+                        nonDeferredProjects.Add(hierachies[0]);
+                    }
+                }
+
+                hr = enumHierarchies.Next(1, hierachies, out fetchedCount);
+            }
+
+            solution.GetProperty((int)__VSPROPID.VSPROPID_SolutionFileName, out object solutionFilePath);
+
+            this.WriteToOutputPane("Solution '" + solutionFilePath + "' has " + (deferredProjects.Count + nonDeferredProjects.Count) + " projects.");
+
+            this.WriteToOutputPane("* Deferred projects - " + deferredProjects.Count);
+            foreach (var hierarchy in deferredProjects)
+            {
+                hr = hierarchy.GetCanonicalName((uint)VSConstants.VSITEMID.Root, out string name);
+
+                if (ErrorHandler.Succeeded(hr))
+                {
+                    this.WriteToOutputPane(name);
+                }
+            }
+
+            this.WriteToOutputPane("* Non deferred projects - " + nonDeferredProjects.Count);
+            foreach (var hierarchy in nonDeferredProjects)
+            {
+                hr = hierarchy.GetCanonicalName((uint)VSConstants.VSITEMID.Root, out string name);
+
+                if (ErrorHandler.Succeeded(hr))
+                {
+                    this.WriteToOutputPane(name);
+                }
+            }
+        }
+
+        private void WriteToOutputPane(string data)
+        {
+            if (this.windowPane == null)
+            {
+                this.windowPane = this.GetOutputPane(VSConstants.OutputWindowPaneGuid.GeneralPane_guid, LslwindowPaneCaption);
+            }
+
+            this.windowPane?.Activate();
+            this.windowPane?.OutputString(data + System.Environment.NewLine);
         }
     }
 }
