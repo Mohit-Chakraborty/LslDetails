@@ -9,10 +9,17 @@ namespace LslDetails
     using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
+    using System.Linq;
     using System.Runtime.InteropServices;
+    using System.Threading.Tasks;
+    using Microsoft;
     using Microsoft.VisualStudio;
     using Microsoft.VisualStudio.Shell;
     using Microsoft.VisualStudio.Shell.Interop;
+    using Microsoft.VisualStudio.Workspace;
+    using Microsoft.VisualStudio.Workspace.Extensions.MSBuild;
+    using Microsoft.VisualStudio.Workspace.Indexing;
+    using Microsoft.VisualStudio.Workspace.VSIntegration;
 
     /// <summary>
     /// This is the class that implements the package exposed by this assembly.
@@ -156,24 +163,46 @@ namespace LslDetails
             this.WriteToOutputPane("* Deferred projects - " + deferredProjects.Count);
             foreach (var hierarchy in deferredProjects)
             {
-                hr = hierarchy.GetCanonicalName((uint)VSConstants.VSITEMID.Root, out string name);
-
-                if (ErrorHandler.Succeeded(hr))
-                {
-                    this.WriteToOutputPane(name);
-                }
+                this.WriteProjectNameAndDetails(hierarchy);
             }
 
             this.WriteToOutputPane("* Non deferred projects - " + nonDeferredProjects.Count);
             foreach (var hierarchy in nonDeferredProjects)
             {
-                hr = hierarchy.GetCanonicalName((uint)VSConstants.VSITEMID.Root, out string name);
-
-                if (ErrorHandler.Succeeded(hr))
-                {
-                    this.WriteToOutputPane(name);
-                }
+                this.WriteProjectNameAndDetails(hierarchy);
             }
+        }
+
+        private void WriteProjectNameAndDetails(IVsHierarchy hierarchy)
+        {
+            int hr = hierarchy.GetCanonicalName((uint)VSConstants.VSITEMID.Root, out string name);
+
+            if (ErrorHandler.Succeeded(hr))
+            {
+                this.WriteToOutputPane(name);
+
+                ThreadHelper.JoinableTaskFactory.Run(async () =>
+                {
+                    var outputPath = await this.GetOutputPathAsync(name);
+                    this.WriteToOutputPane("    Output - " + outputPath);
+                });
+            }
+        }
+
+        private async Task<string> GetOutputPathAsync(string projectPath)
+        {
+            Requires.NotNullOrEmpty(projectPath, nameof(projectPath));
+
+            var workspaceService = this.GetService(typeof(SVsSolutionWorkspaceService)) as IVsSolutionWorkspaceService;
+            var solutionService = workspaceService?.CurrentWorkspace?.GetService(typeof(ISolutionService)) as ISolutionService;
+
+            var projectConfiguration = await solutionService?.GetProjectConfigurationAsync(workspaceService?.SolutionFile, projectPath, workspaceService?.ActiveConfiguration);
+            var indexService = workspaceService?.CurrentWorkspace?.GetIndexWorkspaceService();
+
+            var fileReferenceResult = await indexService?.GetFileReferencesAsync(projectPath, context: projectConfiguration, referenceTypes: (int)FileReferenceInfoType.Output);
+            var outputPath = fileReferenceResult?.Select(f => f.Path).FirstOrDefault();
+
+            return (outputPath != null) ? workspaceService.CurrentWorkspace.MakeRooted(outputPath) : null;
         }
 
         private void WriteToOutputPane(string data)
