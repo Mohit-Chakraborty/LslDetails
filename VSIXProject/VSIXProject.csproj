@@ -56,6 +56,7 @@
     <CodeAnalysisRuleSet>VSIXProject.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="LslDetailsCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="LslDetailsPackage.cs" />
   </ItemGroup>
@@ -69,8 +70,12 @@
     <None Include="VSIXProject.ruleset" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Resources\LslDetailsCommand.png" />
     <Content Include="Resources\LslDetailsPackage.ico" />
     <Content Include="stylesheet.css" />
+    <VSCTCompile Include="LslDetailsPackage.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="EnvDTE, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">

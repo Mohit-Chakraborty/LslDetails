@@ -68,6 +68,8 @@ namespace LslDetails
         {
             base.Initialize();
 
+            LslDetailsCommand.Initialize(this);
+
             KnownUIContexts.SolutionExistsAndFullyLoadedContext.UIContextChanged += this.SolutionExistsAndFullyLoadedContext_UIContextChanged;
         }
 
@@ -151,7 +153,7 @@ namespace LslDetails
 
             solution.GetProperty((int)__VSPROPID.VSPROPID_SolutionFileName, out object solutionFilePath);
 
-            this.WriteToOutputPane("Solution '" + solutionFilePath + "' has " + (deferredProjects.Count + nonDeferredProjects.Count) + " projects.");
+            this.WriteToOutputPane("Solution '" + solutionFilePath + "' has " + (deferredProjects.Count + nonDeferredProjects.Count) + " loaded projects.");
 
             this.WriteToOutputPane("* Deferred projects - " + deferredProjects.Count);
             foreach (var hierarchy in deferredProjects)
